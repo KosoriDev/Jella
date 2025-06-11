@@ -2,7 +2,7 @@
 #include <string>
 #include <fstream>
 #include "server.h"
-#include "yaml/yaml.hpp"
+#include "yaml/Yaml.hpp"
 
 namespace std {
     class invalid_argument;

@@ -1,0 +1,67 @@
+version: 2.1
+
+orbs:
+  win: circleci/windows@5.1.0
+
+jobs:
+  build-linux:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: |
+            sudo apt update
+            sudo apt install -y build-essential cmake gcc clang
+      
+      - run:
+          name: Build Project
+          command: |
+            mkdir -p build
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --target server -- -j $(nproc)
+            
+      - run:
+          name: Export Executable
+          command: |
+            mkdir -p ~/export
+            cp build/jella ~/export/jella
+
+      - store_artifacts:
+          path: ~/export
+          destination: artifacts
+
+
+  build-windows:
+    executor: win/server-2022
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: |
+            choco install -y cmake mingw
+
+      - run:
+          name: Build Project
+          command: |
+            mkdir build
+            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+            cmake --build build --target server
+
+      - run:
+          name: Export Executable
+          command: |
+            mkdir -p export
+            cp build/jella.exe export/jella.exe
+
+      - store_artifacts:
+          path: export
+          destination: artifacts
+
+
+workflows:
+  build:
+    jobs:
+      - build-linux
+      - build-windows

@@ -9,8 +9,8 @@ add_executable(server main.cpp
         server.h
         webpage_handler.cpp
         webpage_handler.h
-        yaml/yaml.cpp
-        yaml/yaml.hpp)
+        yaml/Yaml.cpp
+        yaml/Yaml.hpp)
 
 target_include_directories(server PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
