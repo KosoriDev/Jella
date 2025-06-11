@@ -1,14 +1,36 @@
 #include "server.h"
 #include <iostream>
-#include <format>
 #include <string>
-#include <winsock2.h>
-
+#include <format>
 #include "webpage_handler.h"
 
-[[noreturn]] int server(
-    const int server_port
-) {
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    using socket_t = SOCKET;
+    #define CLOSESOCKET closesocket
+    #define INIT_SOCKET() \
+        WSADATA wsaData; \
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) { \
+            std::cerr << "WSAStartup failed." << std::endl; \
+            return -1; \
+        }
+    #define CLEANUP_SOCKET() WSACleanup()
+#else
+    #include <unistd.h>
+    #include <cstring>
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    using socket_t = int;
+    #define INVALID_SOCKET -1
+    #define SOCKET_ERROR -1
+    #define CLOSESOCKET close
+    #define INIT_SOCKET()
+    #define CLEANUP_SOCKET()
+#endif
+
+int server(const int server_port) {
     if (server_port < 0 || server_port > 65535) {
         std::cerr << "Invalid port number. Please use a port between 0 and 65535." << std::endl;
         return -1;
@@ -16,21 +38,16 @@
 
     if (server_port > 49151) {
         std::cerr <<
-                "WARNING: These are Dynamic/Private/Ephemeral ports used by client applications when initiating a connection to a server. These ports are assigned dynamically for short-term use and are not registered for specific services."
-                << std::endl;
+            "WARNING: These are Dynamic/Private/Ephemeral ports used by client applications when initiating a connection to a server. These ports are assigned dynamically for short-term use and are not registered for specific services."
+            << std::endl;
     }
 
-    WSADATA wsaData;
+    INIT_SOCKET();
 
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        std::cerr << "WSAStartup failed." << std::endl;
-        return -1;
-    }
-
-    const SOCKET server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    const socket_t server_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (server_socket == INVALID_SOCKET) {
         std::cerr << "Socket creation failed." << std::endl;
-        WSACleanup();
+        CLEANUP_SOCKET();
         return -1;
     }
 
@@ -39,26 +56,29 @@
     server_addr.sin_port = htons(server_port);
     server_addr.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(server_socket, reinterpret_cast<sockaddr *>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
+    int opt = 1;
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<char*>(&opt), sizeof(opt));
+
+    if (bind(server_socket, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) == SOCKET_ERROR) {
         std::cerr << "Bind to port " << server_port << " failed." << std::endl;
-        closesocket(server_socket);
-        WSACleanup();
+        CLOSESOCKET(server_socket);
+        CLEANUP_SOCKET();
         return -1;
     }
 
     if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR) {
         std::cerr << "Listen failed." << std::endl;
-        closesocket(server_socket);
-        WSACleanup();
+        CLOSESOCKET(server_socket);
+        CLEANUP_SOCKET();
         return -1;
     }
 
     std::cout << "Server is listening on port " << server_port << std::endl;
 
     while (true) {
-        sockaddr_in client_addr;
-        int client_addr_size = sizeof(client_addr);
-        const SOCKET client_socket = accept(server_socket, reinterpret_cast<sockaddr *>(&client_addr), &client_addr_size);
+        sockaddr_in client_addr{};
+        socklen_t client_addr_size = sizeof(client_addr);
+        const socket_t client_socket = accept(server_socket, reinterpret_cast<sockaddr*>(&client_addr), &client_addr_size);
 
         if (client_socket == INVALID_SOCKET) {
             std::cerr << std::format("Client {}:{} accepting failure.\n", inet_ntoa(client_addr.sin_addr),
@@ -79,11 +99,11 @@
             std::cout << "Extracted URL: " << url << std::endl;
 
             std::string response = webpage_handler(url);
-            send(client_socket, response.c_str(), response.length(), 0);
+            send(client_socket, response.c_str(), static_cast<int>(response.length()), 0);
         } else {
             std::cerr << "Failed to receive data from client." << std::endl;
         }
 
-        closesocket(client_socket);
+        CLOSESOCKET(client_socket);
     }
 }
