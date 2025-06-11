@@ -3,4 +3,4 @@
 
 int server(int server_port);
 
-#endif //SERVER_H
+#endif // SERVER_H
