@@ -16,6 +16,11 @@ target_include_directories(server PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+find_package(OpenSSL REQUIRED)
+include_directories(${OPENSSL_INCLUDE_DIR})
+
+target_link_libraries(server ${OPENSSL_LIBRARIES})
+
 if (MINGW)
     target_link_options(server PRIVATE -static)
 endif()

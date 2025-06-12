@@ -13,7 +13,7 @@ jobs:
           name: Install Dependencies
           command: |
             sudo apt update
-            sudo apt install -y build-essential cmake gcc clang
+            sudo apt install -y build-essential cmake gcc clang g++ libssl-dev libboost-all-dev libcurl4-openssl-dev
       
       - run:
           name: Build Project
@@ -40,17 +40,23 @@ jobs:
       - run:
           name: Install Dependencies
           command: |
-            choco install -y cmake mingw
+            choco install -y cmake
+            choco install -y msys2
+            set PATH=C:\tools\msys64\usr\bin;%PATH%
+            C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-toolchain mingw-w64-x86_64-openssl"
 
       - run:
           name: Build Project
+          shell: bash.exe
           command: |
-            mkdir build
-            cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+            export PATH=/mingw64/bin:$PATH
+            mkdir -p build
+            cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=/mingw64
             cmake --build build --target server
 
       - run:
           name: Export Executable
+          shell: bash.exe
           command: |
             mkdir -p export
             cp build/jella.exe export/jella.exe
@@ -58,7 +64,6 @@ jobs:
       - store_artifacts:
           path: export
           destination: artifacts
-
 
 workflows:
   build:
