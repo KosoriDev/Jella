@@ -14,19 +14,19 @@ jobs:
           command: |
             sudo apt update
             sudo apt install -y build-essential cmake gcc clang g++ libssl-dev libboost-all-dev libcurl4-openssl-dev
-      
+
       - run:
           name: Build Project
           command: |
             mkdir -p build
             cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-            cmake --build build --target server -- -j $(nproc)
-            
+            cmake --build build --target jella -- -j $(nproc)
+
       - run:
           name: Export Executable
           command: |
             mkdir -p ~/export
-            cp build/jella ~/export/jella
+            cp build/bin/jella ~/export/jella
 
       - store_artifacts:
           path: ~/export
@@ -38,31 +38,31 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install Dependencies
+          name: Setup MSYS2 & toolchain
           command: |
-            choco install -y cmake
             choco install -y msys2
-            set PATH=C:\tools\msys64\usr\bin;%PATH%
-            C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm mingw-w64-x86_64-toolchain mingw-w64-x86_64-openssl"
-
+            C:\tools\msys64\usr\bin\bash -lc "
+              pacman -Syu --noconfirm
+              pacman -S --noconfirm mingw-w64-x86_64-toolchain \
+                                       mingw-w64-x86_64-cmake \
+                                       mingw-w64-x86_64-make \
+                                       mingw-w64-x86_64-ninja \
+                                       mingw-w64-x86_64-openssl
+            "
       - run:
           name: Build Project
-          shell: bash.exe
+          shell: C:/tools/msys64/usr/bin/bash -lc
           command: |
-            export PATH=/mingw64/bin:$PATH
             mkdir -p build
-            cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DOPENSSL_ROOT_DIR=/mingw64
-            cmake --build build --target server
-
+            cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+            cmake --build build --target jella -- -j $(nproc)
       - run:
           name: Export Executable
-          shell: bash.exe
+          shell: C:/tools/msys64/usr/bin/bash -lc
           command: |
-            mkdir -p export
-            cp build/jella.exe export/jella.exe
-
+            cp build/bin/jella.exe C:/export/jella.exe
       - store_artifacts:
-          path: export
+          path: C:/export
           destination: artifacts
 
 workflows:

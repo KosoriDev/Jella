@@ -1,0 +1,5 @@
+#pragma once
+namespace embedded {
+    const char* MIME_TYPES_CSV = "@MIME_TYPES_HEX@";
+    const size_t MIME_TYPES_CSV_SIZE = @MIME_TYPES_CSV_SIZE@;
+}
